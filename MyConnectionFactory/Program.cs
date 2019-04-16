@@ -19,7 +19,7 @@ namespace MyConnectionFactory
         static void Main(string[] args)
         {
             Console.WriteLine("***** 非常简单的连接工厂 *****");
-
+              
             //获取某个连接
             //IDbConnection conn= GetConnection(DataProvider.SqlServer);
 
