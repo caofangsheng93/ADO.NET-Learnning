@@ -17,8 +17,8 @@ namespace DataProviderFactory
 
             //从配置文件中获取连接字符串和提供程序
             string dp = ConfigurationManager.AppSettings["provider"];
-            string constr = ConfigurationManager.AppSettings["Constr"];
-
+            //string constr = ConfigurationManager.AppSettings["Constr"];
+            string constr = ConfigurationManager.ConnectionStrings["AutoLotOleDbProvider"].ConnectionString;
             //得到工厂提供程序
             DbProviderFactory df = DbProviderFactories.GetFactory(dp);
 
