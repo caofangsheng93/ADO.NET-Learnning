@@ -196,6 +196,42 @@ namespace AutoLotConnectedLayer
             CloseConnection();
             reader.Close();
             return dt;
+        }
+        #endregion
+
+        #region 根据CarID获取PetName
+        /// <summary>
+        /// 根据CarID获取PetName
+        /// </summary>
+        /// <param name="carID"></param>
+        /// <returns></returns>
+        public string LookUpPetName(int carID)
+        {
+            string carPetName = string.Empty;
+            //创建并 打开连接
+            OpenConnection("server=.;database=AutoLot;uid=sa;pwd=Password_1");
+            using (SqlCommand cmd = new SqlCommand())
+            {
+                cmd.CommandText = "GetPetName";
+                cmd.Connection = conn;
+                cmd.CommandType = CommandType.StoredProcedure;
+
+                //输入参数[默认为input参数]
+                SqlParameter parCarID = new SqlParameter("@CarID", carID);
+                cmd.Parameters.Add(parCarID);
+
+                //输出参数
+                SqlParameter parName = new SqlParameter();
+                parName.ParameterName = "@PetName";
+                parName.Direction = ParameterDirection.Output;
+                cmd.Parameters.Add(parName);
+
+                cmd.ExecuteNonQuery();
+
+                //返回输出参数
+                carPetName = (string)cmd.Parameters["@PetName"].Value;
+            }
+            return carPetName;
         } 
         #endregion
     }
