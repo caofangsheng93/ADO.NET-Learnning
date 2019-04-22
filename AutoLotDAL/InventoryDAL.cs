@@ -8,6 +8,17 @@ using System.Data;
 using System.Data.SqlClient;
 namespace AutoLotConnectedLayer
 {
+    /*
+     * 前言：事务的特性：原子性（全有或全无）、一致性（数据在整个事务中保持稳定）、隔离性（事务之间不会相互影响）以及持久性（事务会被保存和记录日志）。
+     1. .NET平台以各种形式支持事务。对于ADO.NET[本章]来说，最重要的就是ADO.NET数据提供程序的事务对象
+     （在这里就是System.Data.SqlClient中的SqlTransaction）.此外，.NET基础类库提供了许多API来支持事务。
+     **.System.EnterpriseServices:这个命名空间（位于System.EnterpriseServices.dll程序集）提供的类型允许我们和COM+运行库结合使用，包括对分布式事务的支持。
+     **.System.Transactions:这个命名空间（位于System.Transactions.dll程序集）包含的类允许我们为各种服务写事务性应用程序和资源管理器（如MSMQ、ADO.NET、COM+等）。
+     **.WCF（Windows Communication Foundation）：WCF API提供的服务使服务便于处理各种分布式绑定类。 
+     除了.NET基础类库中现成的事务支持外，还可以使用数据管理系统中的SQL语言本身来实现事务。
+     例如，我们可以编写存储过程来利用Begin Transaction、Rollback和Commit语句。
+     */
+
     public class InventoryDAL
     {
         //这个成员会被所有方法使用
@@ -232,7 +243,83 @@ namespace AutoLotConnectedLayer
                 carPetName = (string)cmd.Parameters["@PetName"].Value;
             }
             return carPetName;
-        } 
+        }
         #endregion
+
+        /// <summary>
+        /// 用这个方法演示事务
+        /// </summary>
+        /// <param name="throwEx"></param>
+        /// <param name="custID"></param>
+        public void ProcessCreditRisk(bool throwEx, int custID)
+        {
+            //首先，根据客户ID查询用户信息
+            string firstName = string.Empty;
+            string lastName = string.Empty;
+            //创建并 打开连接
+            OpenConnection("server=.;database=AutoLot;uid=sa;pwd=Password_1");
+            SqlCommand cmd = new SqlCommand();
+            cmd.CommandText = "select * from Customers where CustID=@CustID";
+            cmd.Connection = conn;
+            cmd.CommandType = CommandType.Text;
+            cmd.Parameters.Add(new SqlParameter("@CustID", custID));
+            using (SqlDataReader reader = cmd.ExecuteReader())
+            {
+                if (reader.HasRows)
+                {
+                    reader.Read();//读取一行
+                    firstName = reader["FirstName"].ToString();
+                    lastName = reader["LastName"].ToString();
+                }
+                else
+                {
+                    return;
+                }
+            }
+            //模拟事务，删除Customer表中的一行，同时在CreditRisks表中添加一行
+            SqlCommand cmdRemove = new SqlCommand();
+            cmdRemove.CommandText = "Delete from Customers where CustID=@CustID";
+            cmdRemove.Connection = conn;
+            cmdRemove.CommandType = CommandType.Text;
+            cmdRemove.Parameters.Add(new SqlParameter("@CustID", custID));
+
+            SqlCommand cmdInsert = new SqlCommand();
+            cmdInsert.CommandText = "Insert Into CreditRisks(CustID,FirstName,LastName)values(@CustID,@FirstName,@LastName)";
+            cmdInsert.Connection = conn;
+            cmdInsert.CommandType = CommandType.Text;
+
+            List<SqlParameter> lstPar = new List<SqlParameter>();
+            lstPar.Add(new SqlParameter("@CustID",custID));
+            lstPar.Add(new SqlParameter("@FirstName", firstName));
+            lstPar.Add(new SqlParameter("@LastName", lastName));
+            cmdInsert.Parameters.AddRange(lstPar.ToArray());
+
+            //定义一个事务变量
+            SqlTransaction tx = null;
+            try
+            {
+                //开始一个事务
+               tx= conn.BeginTransaction();
+               //把命令加入到事务中
+               cmdRemove.Transaction = tx;
+               cmdInsert.Transaction = tx;
+
+               int a= cmdRemove.ExecuteNonQuery();
+               int b = cmdInsert.ExecuteNonQuery();
+               //模拟错误
+               if (throwEx)
+               {
+                    throw new Exception("sorry,数据库错误，事务失败。。。");
+               }
+                //提交事务
+                tx.Commit();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+                tx.Rollback();
+            }
+
+        }
     }
 }
